@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intune Dashboard — Amit Bahuguna</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:        #0D1117;
+  --surface:   #161B22;
+  --surface2:  #21262D;
+  --border:    #30363D;
+  --text:      #C9D1D9;
+  --text-dim:  #8B949E;
+  --blue:      #58A6FF;
+  --blue-btn:  #1F6FEB;
+  --green:     #2EA043;
+  --green-lt:  #56D364;
+  --red:       #F85149;
+  --yellow:    #D29922;
+  --purple:    #BC8CFF;
+  --orange:    #FFA657;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, "Segoe UI", sans-serif; font-size: 13px; min-height: 100vh; }
+
+/* TOPBAR */
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-title { font-size: 15px; font-weight: 600; color: #F0F6FC; }
+.badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.badge-blue { background: #1F3A5F; color: var(--blue); }
+.badge-green { background: #1B2E1E; color: var(--green-lt); }
+.badge-red { background: #2D1B1B; color: var(--red); }
+.badge-yellow { background: #2D2510; color: var(--yellow); }
+.badge-purple { background: #251B3D; color: var(--purple); }
+.topbar-right { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 11px; }
+.refresh-btn { background: var(--blue-btn); color: #fff; border: none; border-radius: 4px; padding: 5px 14px; font-size: 11px; cursor: pointer; }
+.refresh-btn:hover { background: #388BFD; }
+.last-refresh { font-size: 10px; color: var(--text-dim); }
+
+/* NAV TABS */
+.nav-tabs { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; gap: 4px; }
+.nav-tab { padding: 10px 16px; color: var(--text-dim); font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; user-select: none; }
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+/* LAYOUT */
+.main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* SUMMARY CARDS */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.card-label { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
+.card-value { font-size: 26px; font-weight: 600; color: #F0F6FC; margin-bottom: 4px; }
+.card-sub { font-size: 11px; color: var(--text-dim); }
+.card.green { border-left: 3px solid var(--green); }
+.card.red { border-left: 3px solid var(--red); }
+.card.blue { border-left: 3px solid var(--blue); }
+.card.yellow { border-left: 3px solid var(--yellow); }
+.card.purple { border-left: 3px solid var(--purple); }
+.card.orange { border-left: 3px solid var(--orange); }
+
+/* GRID */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+@media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+/* CHART BOXES */
+.chart-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.chart-box-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+.chart-wrap { position: relative; height: 220px; }
+
+/* TABLE */
+.table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+.table-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+.table-title { font-size: 12px; font-weight: 600; color: var(--text); }
+.search-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; color: var(--text); font-size: 11px; width: 200px; }
+.search-box:focus { outline: none; border-color: var(--blue); }
+table { width: 100%; border-collapse: collapse; }
+thead th { background: var(--surface2); padding: 8px 12px; text-align: left; font-size: 10px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface2); }
+tbody td { padding: 9px 12px; font-size: 12px; color: var(--text); }
+
+/* STATUS PILLS */
+.status { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.s-compliant { background: #1B2E1E; color: var(--green-lt); }
+.s-noncompliant { background: #2D1B1B; color: var(--red); }
+.s-grace { background: #2D2510; color: var(--yellow); }
+.s-noteval { background: #21262D; color: var(--text-dim); }
+.s-enrolled { background: #1B2E1E; color: var(--green-lt); }
+.s-failed { background: #2D1B1B; color: var(--red); }
+.s-pending { background: #2D2510; color: var(--yellow); }
+.s-required { background: #1F3A5F; color: var(--blue); }
+.s-available { background: #251B3D; color: var(--purple); }
+.s-windows { background: #1C2C45; color: #79C0FF; }
+.s-ios { background: #2D1B1B; color: #FFA657; }
+.s-android { background: #1B2E1E; color: var(--green-lt); }
+.s-macos { background: #21262D; color: var(--text-dim); }
+
+/* PROGRESS BAR */
+.progress-wrap { display: flex; align-items: center; gap: 8px; }
+.progress-bar { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; }
+.progress-pct { font-size: 11px; color: var(--text-dim); width: 36px; text-align: right; }
+
+/* ENCRYPTED ICON */
+.enc-yes { color: var(--green-lt); }
+.enc-no  { color: var(--red); }
+
+/* LOADING */
+.loading { text-align: center; padding: 40px; color: var(--text-dim); font-size: 12px; }
+
+/* FOOTER */
+.footer { text-align: center; padding: 20px; color: var(--text-dim); font-size: 10px; border-top: 1px solid var(--border); margin-top: 30px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span style="font-size:18px">&#9783;</span>
+    <span class="topbar-title">Intune Dashboard</span>
+    <span class="badge badge-blue">Mock Data</span>
+    <span class="badge badge-green" id="connStatus">&#10003; Demo Mode</span>
+  </div>
+  <div class="topbar-right">
+    <span class="last-refresh" id="lastRefresh">Loading...</span>
+    <button class="refresh-btn" onclick="loadAll()">&#8635; Refresh</button>
+    <span style="color:var(--text-dim)">Amit Bahuguna &nbsp;|&nbsp; github.com/Amitcicd</span>
+  </div>
+</div>
+
+<!-- NAV TABS -->
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="switchTab('overview')">&#9632; Overview</div>
+  <div class="nav-tab" onclick="switchTab('devices')">&#128187; Devices</div>
+  <div class="nav-tab" onclick="switchTab('autopilot')">&#9654; Autopilot</div>
+  <div class="nav-tab" onclick="switchTab('apps')">&#128230; Win32 Apps</div>
+</div>
+
+<div class="main">
+
+<!-- ── OVERVIEW ── -->
+<div id="tab-overview" class="panel active">
+  <div class="cards" id="summaryCards"><div class="loading">Loading summary...</div></div>
+  <div class="grid-2">
+    <div class="chart-box">
+      <div class="chart-box-title">Device Compliance <span class="badge badge-blue" id="complianceRate">—</span></div>
+      <div class="chart-wrap"><canvas id="donutChart"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-box-title">Compliance by Platform</div>
+      <div class="chart-wrap"><canvas id="platformChart"></canvas></div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="chart-box">
+      <div class="chart-box-title">Autopilot Deployments — Last 14 Days</div>
+      <div class="chart-wrap"><canvas id="apTrendChart"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-box-title">Win32 App Deployment Status</div>
+      <div class="chart-wrap"><canvas id="appStatusChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DEVICES ── -->
+<div id="tab-devices" class="panel">
+  <div class="cards" id="deviceCards"></div>
+  <div class="table-box">
+    <div class="table-header">
+      <span class="table-title">All Managed Devices</span>
+      <input class="search-box" placeholder="Search device or user..." oninput="filterTable('deviceTable', this.value)" id="deviceSearch">
+    </div>
+    <div style="overflow-x:auto">
+      <table id="deviceTable">
+        <thead><tr>
+          <th>Device</th><th>User</th><th>Platform</th><th>OS Version</th>
+          <th>Compliance</th><th>Encrypted</th><th>Last Sync</th>
+        </tr></thead>
+        <tbody id="deviceTableBody"><tr><td colspan="7" class="loading">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── AUTOPILOT ── -->
+<div id="tab-autopilot" class="panel">
+  <div class="cards" id="apCards"></div>
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="chart-box">
+      <div class="chart-box-title">Deployment Trend — 14 Days</div>
+      <div class="chart-wrap"><canvas id="apTrendChart2"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-box-title">Success vs Failed</div>
+      <div class="chart-wrap"><canvas id="apDonutChart"></canvas></div>
+    </div>
+  </div>
+  <div class="table-box">
+    <div class="table-header">
+      <span class="table-title">Autopilot Deployments</span>
+      <input class="search-box" placeholder="Search serial or device..." oninput="filterTable('apTable', this.value)">
+    </div>
+    <div style="overflow-x:auto">
+      <table id="apTable">
+        <thead><tr>
+          <th>Serial Number</th><th>Device Name</th><th>Profile</th>
+          <th>Group Tag</th><th>User</th><th>Status</th><th>Duration</th><th>Date</th>
+        </tr></thead>
+        <tbody id="apTableBody"><tr><td colspan="8" class="loading">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── WIN32 APPS ── -->
+<div id="tab-apps" class="panel">
+  <div class="cards" id="appCards"></div>
+  <div class="table-box">
+    <div class="table-header">
+      <span class="table-title">Win32 App Deployment Status</span>
+      <input class="search-box" placeholder="Search app name..." oninput="filterTable('appTable', this.value)">
+    </div>
+    <div style="overflow-x:auto">
+      <table id="appTable">
+        <thead><tr>
+          <th>App Name</th><th>Version</th><th>Publisher</th><th>Intent</th>
+          <th>Groups</th><th>Success</th><th>Failed</th><th>Pending</th>
+          <th>Success Rate</th><th>Last Update</th>
+        </tr></thead>
+        <tbody id="appTableBody"><tr><td colspan="10" class="loading">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</div><!-- end main -->
+
+<div class="footer">
+  Intune Dashboard &nbsp;|&nbsp; Built by <strong>Amit Bahuguna</strong> &nbsp;|&nbsp;
+  Senior Modern Workplace Engineer &nbsp;|&nbsp; MD-102 Certified &nbsp;|&nbsp;
+  github.com/Amitcicd
+</div>
+
+<script>
+// ── CHART INSTANCES ────────────────────────────────────────────────────────
+let charts = {};
+const C = {
+  bg:      '#0D1117', surface: '#161B22', surface2: '#21262D', border: '#30363D',
+  text:    '#C9D1D9', dim:     '#8B949E',
+  blue:    '#58A6FF', green:   '#56D364', red:    '#F85149',
+  yellow:  '#D29922', purple:  '#BC8CFF', orange: '#FFA657',
+};
+Chart.defaults.color = C.dim;
+Chart.defaults.borderColor = C.border;
+
+function mkChart(id, config) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, config);
+}
+
+// ── TAB SWITCHING ──────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'devices')   loadDevices();
+  if (name === 'autopilot') loadAutopilot();
+  if (name === 'apps')      loadApps();
+}
+
+// ── STATUS BADGE HELPERS ───────────────────────────────────────────────────
+function compBadge(c) {
+  const m = { Compliant:'s-compliant', NonCompliant:'s-noncompliant', InGracePeriod:'s-grace', NotEvaluated:'s-noteval' };
+  const l = { Compliant:'Compliant', NonCompliant:'Non-Compliant', InGracePeriod:'Grace Period', NotEvaluated:'Not Evaluated' };
+  return `<span class="status ${m[c]||'s-noteval'}">${l[c]||c}</span>`;
+}
+function apBadge(s) {
+  const m = { Enrolled:'s-enrolled', Failed:'s-failed', Pending:'s-pending' };
+  return `<span class="status ${m[s]||'s-noteval'}">${s}</span>`;
+}
+function intentBadge(i) {
+  return `<span class="status ${i==='Required'?'s-required':'s-available'}">${i}</span>`;
+}
+function platBadge(p) {
+  const m = { Windows:'s-windows', iOS:'s-ios', Android:'s-android', macOS:'s-macos' };
+  return `<span class="status ${m[p]||'s-noteval'}">${p}</span>`;
+}
+function pctBar(val, total, color) {
+  const pct = total > 0 ? Math.round(val/total*100) : 0;
+  return `<div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${color}"></div></div>
+    <span class="progress-pct">${pct}%</span>
+  </div>`;
+}
+
+// ── SEARCH FILTER ──────────────────────────────────────────────────────────
+function filterTable(tableId, query) {
+  const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+  const q = query.toLowerCase();
+  rows.forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+// ── LOAD SUMMARY / OVERVIEW ────────────────────────────────────────────────
+async function loadSummary() {
+  const r = await fetch('/api/summary'); const d = await r.json();
+  document.getElementById('lastRefresh').textContent = 'Last refresh: ' + d.lastRefresh;
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="card green">
+      <div class="card-label">Total Devices</div>
+      <div class="card-value">${d.devices.total}</div>
+      <div class="card-sub">Managed by Intune</div>
+    </div>
+    <div class="card green">
+      <div class="card-label">Compliant</div>
+      <div class="card-value">${d.devices.compliant}</div>
+      <div class="card-sub">Rate: ${d.devices.complianceRate}%</div>
+    </div>
+    <div class="card red">
+      <div class="card-label">Non-Compliant</div>
+      <div class="card-value">${d.devices.nonCompliant}</div>
+      <div class="card-sub">Requires attention</div>
+    </div>
+    <div class="card yellow">
+      <div class="card-label">Grace Period</div>
+      <div class="card-value">${d.devices.gracePeriod}</div>
+      <div class="card-sub">Action needed soon</div>
+    </div>
+    <div class="card blue">
+      <div class="card-label">Encrypted</div>
+      <div class="card-value">${d.devices.encrypted}</div>
+      <div class="card-sub">BitLocker active</div>
+    </div>
+    <div class="card purple">
+      <div class="card-label">Autopilot Success</div>
+      <div class="card-value">${d.autopilot.success}</div>
+      <div class="card-sub">Rate: ${d.autopilot.successRate}%</div>
+    </div>
+    <div class="card orange">
+      <div class="card-label">App Deployments</div>
+      <div class="card-value">${d.apps.success}</div>
+      <div class="card-sub">${d.apps.failed} failed · ${d.apps.pending} pending</div>
+    </div>
+  `;
+  document.getElementById('complianceRate').textContent = d.devices.complianceRate + '%';
+}
+
+async function loadComplianceCharts() {
+  const r = await fetch('/api/compliance-chart'); const d = await r.json();
+
+  mkChart('donutChart', {
+    type: 'doughnut',
+    data: {
+      labels: d.donut.labels,
+      datasets: [{ data: d.donut.data, backgroundColor: [C.green,'#F85149','#D29922','#8B949E'], borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '68%',
+      plugins: { legend: { position: 'right', labels: { color: C.dim, boxWidth: 10, padding: 12, font: { size: 11 } } } }
+    }
+  });
+
+  mkChart('platformChart', {
+    type: 'bar',
+    data: {
+      labels: d.platform.labels,
+      datasets: [
+        { label: 'Compliant', data: d.platform.compliant, backgroundColor: C.green + 'CC', borderRadius: 3 },
+        { label: 'Non-Compliant', data: d.platform.nonCompliant, backgroundColor: C.red + 'CC', borderRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: C.dim, font: { size: 11 } } } },
+      scales: {
+        x: { stacked: true, grid: { color: C.border }, ticks: { color: C.dim } },
+        y: { stacked: true, grid: { color: C.border }, ticks: { color: C.dim } }
+      }
+    }
+  });
+}
+
+async function loadOverviewApCharts() {
+  const r = await fetch('/api/autopilot'); const d = await r.json();
+  mkChart('apTrendChart', {
+    type: 'line',
+    data: {
+      labels: d.trend.labels,
+      datasets: [
+        { label: 'Enrolled', data: d.trend.success, borderColor: C.green, backgroundColor: C.green + '22', fill: true, tension: .4, pointRadius: 3 },
+        { label: 'Failed',   data: d.trend.failed,  borderColor: C.red,   backgroundColor: C.red   + '22', fill: true, tension: .4, pointRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: C.dim, font: { size: 11 } } } },
+      scales: {
+        x: { grid: { color: C.border }, ticks: { color: C.dim, maxTicksLimit: 7 } },
+        y: { grid: { color: C.border }, ticks: { color: C.dim } }
+      }
+    }
+  });
+}
+
+async function loadOverviewAppChart() {
+  const r = await fetch('/api/apps'); const apps = await r.json();
+  const totSuccess = apps.reduce((a,x) => a+x.success, 0);
+  const totFailed  = apps.reduce((a,x) => a+x.failed, 0);
+  const totPending = apps.reduce((a,x) => a+x.pending, 0);
+  mkChart('appStatusChart', {
+    type: 'doughnut',
+    data: {
+      labels: ['Installed','Failed','Pending'],
+      datasets: [{ data: [totSuccess, totFailed, totPending], backgroundColor: [C.green, C.red, C.yellow], borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { position: 'right', labels: { color: C.dim, boxWidth: 10, padding: 12, font: { size: 11 } } } }
+    }
+  });
+}
+
+// ── LOAD DEVICES ───────────────────────────────────────────────────────────
+async function loadDevices() {
+  const r = await fetch('/api/devices'); const devices = await r.json();
+  const comp = devices.filter(d => d.compliance === 'Compliant').length;
+  const enc  = devices.filter(d => d.encrypted).length;
+  document.getElementById('deviceCards').innerHTML = `
+    <div class="card blue"><div class="card-label">Total</div><div class="card-value">${devices.length}</div><div class="card-sub">Managed devices</div></div>
+    <div class="card green"><div class="card-label">Compliant</div><div class="card-value">${comp}</div><div class="card-sub">${Math.round(comp/devices.length*100)}% compliance rate</div></div>
+    <div class="card red"><div class="card-label">Non-Compliant</div><div class="card-value">${devices.filter(d=>d.compliance==='NonCompliant').length}</div><div class="card-sub">Needs remediation</div></div>
+    <div class="card yellow"><div class="card-label">Grace Period</div><div class="card-value">${devices.filter(d=>d.compliance==='InGracePeriod').length}</div><div class="card-sub">Action needed</div></div>
+    <div class="card green"><div class="card-label">Encrypted</div><div class="card-value">${enc}</div><div class="card-sub">BitLocker active</div></div>
+  `;
+  const tbody = document.getElementById('deviceTableBody');
+  tbody.innerHTML = devices.map(d => `
+    <tr>
+      <td><strong>${d.name}</strong></td>
+      <td style="color:var(--text-dim)">${d.user}</td>
+      <td>${platBadge(d.platform)}</td>
+      <td style="color:var(--text-dim)">${d.os}</td>
+      <td>${compBadge(d.compliance)}</td>
+      <td class="${d.encrypted?'enc-yes':'enc-no'}">${d.encrypted?'&#128274; Yes':'&#128275; No'}</td>
+      <td style="color:var(--text-dim)">${d.lastSync}</td>
+    </tr>`).join('');
+}
+
+// ── LOAD AUTOPILOT ─────────────────────────────────────────────────────────
+async function loadAutopilot() {
+  const r = await fetch('/api/autopilot'); const d = await r.json();
+  const ap = d.deployments;
+  const enrolled = ap.filter(a=>a.status==='Enrolled').length;
+  const failed   = ap.filter(a=>a.status==='Failed').length;
+  const pending  = ap.filter(a=>a.status==='Pending').length;
+  document.getElementById('apCards').innerHTML = `
+    <div class="card blue"><div class="card-label">Total Deployments</div><div class="card-value">${ap.length}</div><div class="card-sub">Last 14 days</div></div>
+    <div class="card green"><div class="card-label">Enrolled</div><div class="card-value">${enrolled}</div><div class="card-sub">${Math.round(enrolled/ap.length*100)}% success rate</div></div>
+    <div class="card red"><div class="card-label">Failed</div><div class="card-value">${failed}</div><div class="card-sub">Requires investigation</div></div>
+    <div class="card yellow"><div class="card-label">Pending</div><div class="card-value">${pending}</div><div class="card-sub">In progress</div></div>
+  `;
+  mkChart('apTrendChart2', {
+    type: 'bar',
+    data: {
+      labels: d.trend.labels,
+      datasets: [
+        { label: 'Enrolled', data: d.trend.success, backgroundColor: C.green + 'CC', borderRadius: 3 },
+        { label: 'Failed',   data: d.trend.failed,  backgroundColor: C.red   + 'CC', borderRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: C.dim, font: { size: 11 } } } },
+      scales: {
+        x: { grid: { color: C.border }, ticks: { color: C.dim, maxTicksLimit: 7 } },
+        y: { grid: { color: C.border }, ticks: { color: C.dim } }
+      }
+    }
+  });
+  mkChart('apDonutChart', {
+    type: 'doughnut',
+    data: {
+      labels: ['Enrolled','Failed','Pending'],
+      datasets: [{ data: [enrolled, failed, pending], backgroundColor: [C.green, C.red, C.yellow], borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { position: 'right', labels: { color: C.dim, boxWidth: 10, padding: 12, font: { size: 11 } } } }
+    }
+  });
+  document.getElementById('apTableBody').innerHTML = ap.map(a => `
+    <tr>
+      <td><code style="font-size:11px;color:var(--blue)">${a.serial}</code></td>
+      <td><strong>${a.device}</strong></td>
+      <td style="color:var(--text-dim)">${a.profile}</td>
+      <td><span class="badge badge-blue">${a.groupTag}</span></td>
+      <td style="color:var(--text-dim)">${a.user}</td>
+      <td>${apBadge(a.status)}</td>
+      <td style="color:var(--text-dim)">${a.duration}</td>
+      <td style="color:var(--text-dim)">${a.date}</td>
+    </tr>`).join('');
+}
+
+// ── LOAD APPS ──────────────────────────────────────────────────────────────
+async function loadApps() {
+  const r = await fetch('/api/apps'); const apps = await r.json();
+  const totS = apps.reduce((a,x)=>a+x.success,0);
+  const totF = apps.reduce((a,x)=>a+x.failed,0);
+  const totP = apps.reduce((a,x)=>a+x.pending,0);
+  document.getElementById('appCards').innerHTML = `
+    <div class="card blue"><div class="card-label">Total Apps</div><div class="card-value">${apps.length}</div><div class="card-sub">Deployed via Intune</div></div>
+    <div class="card green"><div class="card-label">Installed</div><div class="card-value">${totS}</div><div class="card-sub">Across all devices</div></div>
+    <div class="card red"><div class="card-label">Failed</div><div class="card-value">${totF}</div><div class="card-sub">Deployment errors</div></div>
+    <div class="card yellow"><div class="card-label">Pending</div><div class="card-value">${totP}</div><div class="card-sub">In queue</div></div>
+  `;
+  document.getElementById('appTableBody').innerHTML = apps.map(a => {
+    const total = a.total;
+    const pct   = Math.round(a.success/total*100);
+    const color = pct >= 90 ? C.green : pct >= 70 ? C.yellow : C.red;
+    return `
+    <tr>
+      <td><strong>${a.name}</strong></td>
+      <td style="color:var(--text-dim)">${a.version}</td>
+      <td style="color:var(--text-dim)">${a.publisher}</td>
+      <td>${intentBadge(a.intent)}</td>
+      <td style="color:var(--blue);font-size:11px">${a.groups.join(', ')}</td>
+      <td style="color:var(--green-lt)">${a.success}</td>
+      <td style="color:var(--red)">${a.failed}</td>
+      <td style="color:var(--yellow)">${a.pending}</td>
+      <td style="min-width:140px">${pctBar(a.success, total, color)}</td>
+      <td style="color:var(--text-dim)">${a.lastUpdate}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── LOAD ALL ───────────────────────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([loadSummary(), loadComplianceCharts(), loadOverviewApCharts(), loadOverviewAppChart()]);
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+loadAll();
+setInterval(loadAll, 30000); // auto-refresh every 30 seconds
+</script>
+</body>
+</html>
